@@ -63,6 +63,9 @@ pub use core::{arch, cell, cmp, hint, marker, mem, ops, ptr, slice, str};
 #[macro_use]
 mod macros;
 
+#[cfg(feature = "alloc")]
+pub mod _collections;
+
 pub mod env;
 pub mod io;
 pub mod os;
@@ -70,7 +73,7 @@ pub mod process;
 pub mod sync;
 pub mod thread;
 pub mod time;
-pub mod _collections;
+
 
 #[cfg(feature = "fs")]
 pub mod fs;
