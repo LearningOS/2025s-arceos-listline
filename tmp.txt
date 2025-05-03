@@ -1,8 +1,8 @@
     [92;1mCreating[0m FAT32 disk image "disk.img" ...
 mkfs.fat 4.2 (2021-01-31)
 Has color
-Has Hello, Arceos!
-print_with_color pass
+No Hello, Arceos!
+print_with_color fault
     [92;1mCreating[0m FAT32 disk image "disk.img" ...
 mkfs.fat 4.2 (2021-01-31)
 ramfs_rename fault
@@ -11,7 +11,7 @@ mkfs.fat 4.2 (2021-01-31)
 alt_alloc default
     [92;1mCreating[0m FAT32 disk image "disk.img" ...
 mkfs.fat 4.2 (2021-01-31)
-support_hashmap default
+support_hashmap pass
     [92;1mCreating[0m FAT32 disk image "disk.img" ...
 mkfs.fat 4.2 (2021-01-31)
 make[1]: Entering directory '/home/zuqis/2025s-arceos-listline/arceos/payload'
