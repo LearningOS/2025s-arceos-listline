@@ -8,3 +8,4 @@ use axstd::println;
 fn main() {
     println!("Hello, world!");
 }
+
