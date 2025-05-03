@@ -22,7 +22,7 @@ macro_rules! println {
         $crate::io::__print_impl(format_args!(
             "\x1b[32m{}\x1b[0m\n",
             format_args!($($arg)*)
-        ));
+        ));//green word
     }
 }
 

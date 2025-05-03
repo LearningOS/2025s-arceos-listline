@@ -403,3 +403,5 @@ pub mod modules {
     #[cfg(feature = "multitask")]
     pub use axtask;
 }
+
+pub use axhal::misc::random as ax_random;

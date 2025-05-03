@@ -19,12 +19,14 @@ fn test_hashmap() {
     let mut m = HashMap::new();
     for value in 0..N {
         let key = format!("key_{value}");
+        println!("key: {key}, value: {value}");
         m.insert(key, value);
     }
     for (k, v) in m.iter() {
         if let Some(k) = k.strip_prefix("key_") {
             assert_eq!(k.parse::<u32>().unwrap(), *v);
         }
+        println!("key: {k}, value: {v}");
     }
     println!("test_hashmap() OK!");
 }
