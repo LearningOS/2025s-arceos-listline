@@ -9,6 +9,12 @@ use axtask::TaskExtRef;
 use axhal::paging::MappingFlags;
 use arceos_posix_api as api;
 
+use axhal::mem::VirtAddr;
+use axhal::mem::PAGE_SIZE_4K as PAGE_SIZE;
+use memory_addr::{MemoryAddr, VirtAddrRange};
+use axhal::mem::phys_to_virt;
+use alloc::vec;
+
 const SYS_IOCTL: usize = 29;
 const SYS_OPENAT: usize = 56;
 const SYS_CLOSE: usize = 57;
@@ -138,9 +144,120 @@ fn sys_mmap(
     prot: i32,
     flags: i32,
     fd: i32,
-    _offset: isize,
+    offset: isize,
 ) -> isize {
-    unimplemented!("no sys_mmap!");
+    ax_println!(
+        "sys_mmap: addr={:#x}, length={:#x}, prot={:#x}, flags={:#x}, fd={}, offset={:#x}",
+        addr as usize, length, prot, flags, fd, offset
+    );
+    syscall_body!(sys_mmap, {
+        // 参数检查
+        if length == 0 {
+            return Err(LinuxError::EINVAL);
+        }
+
+        // 确保长度按页面对齐
+        let length = (length + PAGE_SIZE - 1) & !(PAGE_SIZE - 1);
+
+        // 解析保护权限
+        let prot = MmapProt::from_bits(prot).ok_or(LinuxError::EINVAL)?;
+        let mut mapping_flags: MappingFlags = prot.into();
+
+        // 解析标志
+        let mmap_flags = MmapFlags::from_bits(flags).ok_or(LinuxError::EINVAL)?;
+
+        // 检查 MAP_SHARED 和 MAP_PRIVATE
+        if mmap_flags.contains(MmapFlags::MAP_SHARED) && mmap_flags.contains(MmapFlags::MAP_PRIVATE) {
+            return Err(LinuxError::EINVAL);
+        }
+
+        // 检查 offset 是否页面对齐
+        if offset < 0 || (offset as usize) % PAGE_SIZE != 0 {
+            return Err(LinuxError::EINVAL);
+        }
+
+        // 获取当前任务的地址空间
+        let curr = current();
+        let task_ext = curr.task_ext();
+        let mut aspace = task_ext.aspace.lock();
+
+        // 处理地址
+        let hint_addr = if addr.is_null() {
+            VirtAddr::from(0)
+        } else {
+            let addr_val = addr as usize;
+            if addr_val >= aspace.end().as_usize() || 
+               addr_val < aspace.base().as_usize() || 
+               addr_val == 0xffffffffffffffff {
+                return Err(LinuxError::EINVAL);
+            }
+            VirtAddr::from(addr_val)
+        };
+
+        let start_vaddr = if mmap_flags.contains(MmapFlags::MAP_FIXED) {
+            if !aspace.contains_range(hint_addr, length) || !hint_addr.is_aligned_4k() {
+                return Err(LinuxError::EINVAL);
+            }
+            aspace.unmap(hint_addr, length)?;
+            hint_addr
+        } else {
+            let range = VirtAddrRange::from_start_size(aspace.base(), aspace.size());
+            let found_addr = aspace
+                .find_free_area(hint_addr, length, range)
+                .ok_or(LinuxError::ENOMEM)?;
+            if found_addr.as_usize() == 0 || found_addr.as_usize() >= aspace.end().as_usize() {
+                return Err(LinuxError::ENOMEM);
+            }
+            found_addr
+        };
+
+        // 映射逻辑
+        if mmap_flags.contains(MmapFlags::MAP_ANONYMOUS) {
+            // 匿名映射
+            aspace.map_alloc(start_vaddr, length, mapping_flags, false)?;
+            Ok(start_vaddr.as_usize())
+        } else {
+            // 文件映射
+            if fd < 0 {
+                return Err(LinuxError::EBADF);
+            }
+
+            // 分配映射
+            aspace.map_alloc(start_vaddr, length, mapping_flags, true)?;
+
+            // 查询物理地址
+            let (paddr, _, _) = aspace
+                .page_table()
+                .query(start_vaddr)
+                .map_err(|_| LinuxError::ENOMEM)?;
+
+            // 读取文件内容
+            let mut buf = vec![0u8; length];
+            let read_len = api::sys_read(fd, buf.as_mut_ptr() as *mut c_void, length);
+            if read_len < 0 {
+                aspace.unmap(start_vaddr, length)?;
+                let err_code = -read_len as i32;
+                let err = match err_code {
+                    9 => LinuxError::EBADF,
+                    22 => LinuxError::EINVAL,
+                    12 => LinuxError::ENOMEM,
+                    _ => LinuxError::EIO, // 通用错误
+                };
+                return Err(err);
+            }
+
+            // 复制文件内容到映射区域
+            unsafe {
+                core::ptr::copy_nonoverlapping(
+                    buf.as_ptr(),
+                    phys_to_virt(paddr).as_mut_ptr(),
+                    read_len as usize,
+                );
+            }
+
+            Ok(start_vaddr.as_usize())
+        }
+    })
 }
 
 fn sys_openat(dfd: c_int, fname: *const c_char, flags: c_int, mode: api::ctypes::mode_t) -> isize {
