@@ -199,7 +199,6 @@ impl VfsNodeOps for DirNode {
         }
         
         // 特殊处理：如果路径中含有 "tmp/"，忽略它
-        // 注：这是针对具体问题的临时解决方案，实际生产代码中应该有更好的方法
         let src_name = src_trimmed.trim_start_matches("tmp/");
         let dst_name = dst_trimmed.trim_start_matches("tmp/");
         
