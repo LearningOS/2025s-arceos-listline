@@ -56,6 +56,7 @@ impl<const PAGE_SIZE: usize> EarlyAllocator<PAGE_SIZE> {
 
 impl<const PAGE_SIZE: usize> BaseAllocator for EarlyAllocator<PAGE_SIZE> {
     fn init(&mut self, start: usize, end: usize) {
+        // 早期分配器的内存范围是固定的,不固定给出的高位地址总是错误的，会比地位地址小，此bug未解决
         let mut start = 0xffffffc08024d000;
         let mut end = 0xffffffc088000000;
         debug!("EarlyAllocator init: [{:#x}, {:#x})", start, end);
@@ -85,10 +86,7 @@ impl<const PAGE_SIZE: usize> ByteAllocator for EarlyAllocator<PAGE_SIZE> {
         let aligned_pos = self.align_up(self.b_pos, align);
         let new_pos = aligned_pos + size;
 
-        debug!(
-            "Allocating {} bytes, aligned position: {:#x}, new position: {:#x}, b_pos: {:#x}, p_pos: {:#x}",
-            size, aligned_pos, new_pos, self.b_pos, self.p_pos
-        );
+        
 
         if new_pos > self.p_pos {
             return Err(AllocError::NoMemory);
@@ -138,10 +136,7 @@ impl<const PAGE_SIZE: usize> PageAllocator for EarlyAllocator<PAGE_SIZE> {
         let new_pos = self.p_pos.saturating_sub(size);
         let aligned_pos = new_pos & !(align_pow2 - 1);
 
-        debug!(
-            "Allocating {} bytes, aligned position: {:#x}, new position: {:#x}, b_pos: {:#x}, p_pos: {:#x}",
-            size, aligned_pos, new_pos, self.b_pos, self.p_pos
-        );
+        
 
         if aligned_pos < self.b_pos || aligned_pos > self.p_pos {
             return Err(AllocError::NoMemory);
@@ -152,7 +147,7 @@ impl<const PAGE_SIZE: usize> PageAllocator for EarlyAllocator<PAGE_SIZE> {
     }
 
     fn dealloc_pages(&mut self, _pos: usize, _pages: usize) {
-        // 页面区域不会被释放
+        
     }
 
     fn total_pages(&self) -> usize {
