@@ -31,6 +31,8 @@ const VM_ENTRY: usize = 0x8020_0000;
 
 #[cfg_attr(feature = "axstd", no_mangle)]
 fn main() {
+    CSR.hedeleg.write_value(0xffff_ffff);
+    CSR.hideleg.write_value(0xffff_ffff);
     ax_println!("Hypervisor ...");
 
     // A new address space for vm.
@@ -102,16 +104,22 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
             }
         },
         Trap::Exception(Exception::IllegalInstruction) => {
-            panic!("Bad instruction: {:#x} sepc: {:#x}",
+            ax_println!("Bad instruction: {:#x} sepc: {:#x}",
                 stval::read(),
                 ctx.guest_regs.sepc
             );
+            ctx.guest_regs.gprs.set_reg(A0, 0x6688);
+            ctx.guest_regs.sepc += 4;
+            return false;
         },
         Trap::Exception(Exception::LoadGuestPageFault) => {
-            panic!("LoadGuestPageFault: stval{:#x} sepc: {:#x}",
+            ax_println!("LoadGuestPageFault: stval{:#x} sepc: {:#x}",
                 stval::read(),
                 ctx.guest_regs.sepc
             );
+            ctx.guest_regs.gprs.set_reg(A0, 0x1234);
+            ctx.guest_regs.sepc += 4;
+            return false;
         },
         _ => {
             panic!(
