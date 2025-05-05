@@ -117,7 +117,7 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
                 stval::read(),
                 ctx.guest_regs.sepc
             );
-            ctx.guest_regs.gprs.set_reg(A0, 0x1234);
+            ctx.guest_regs.gprs.set_reg(A1, 0x1234);
             ctx.guest_regs.sepc += 4;
             return false;
         },
