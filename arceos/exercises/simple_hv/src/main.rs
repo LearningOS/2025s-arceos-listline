@@ -110,7 +110,7 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
             );
             ctx.guest_regs.gprs.set_reg(A0, 0x6688);
             ctx.guest_regs.sepc += 4;
-            return false;
+            // return false;
         },
         Trap::Exception(Exception::LoadGuestPageFault) => {
             ax_println!("LoadGuestPageFault: stval{:#x} sepc: {:#x}",
@@ -119,7 +119,7 @@ fn vmexit_handler(ctx: &mut VmCpuRegisters) -> bool {
             );
             ctx.guest_regs.gprs.set_reg(A1, 0x1234);
             ctx.guest_regs.sepc += 4;
-            return false;
+            // return false;
         },
         _ => {
             panic!(
